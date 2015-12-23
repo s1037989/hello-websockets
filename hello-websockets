@@ -1,0 +1,30 @@
+use Mojolicious::Lite;
+
+# Render template "index.html.ep" from the DATA section
+get '/' => {template => 'index'};
+
+# WebSocket service used by the template to extract the title from a web
+# site
+websocket '/title' => sub {
+  my $c = shift;
+  $c->on(message => sub {
+    my ($c, $msg) = @_;
+    my $title = $msg eq '1' ? time : $c->ua->get($msg)->res->dom->at('title')->text;
+    $c->send($title);
+  });
+};
+
+app->start;
+__DATA__
+
+@@ index.html.ep
+% my $url = url_for 'title';
+<title>Hello Websockets</title>
+<script>
+  if (window.hyper && window.hyper.log) { console.log = hyper.log }
+  console.log(Date.now());
+  var ws = new WebSocket('<%= $url->to_abs %>');
+  ws.onmessage = function (event) { document.body.innerHTML = event.data };
+  ws.onopen    = function (event) { ws.send('http://mojolicio.us') };
+  setInterval(function(){ ws.send(1); }, 1000);
+</script>
